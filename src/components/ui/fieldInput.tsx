@@ -5,11 +5,15 @@ import type { UserFormData } from "../types/user";
 type FieldInputProps = {
   label: string;
   type: string;
-  name: keyof UserFormData;
+  name:
+    | keyof UserFormData
+    | `company.${keyof UserFormData["company"]}`
+    | `address.${keyof UserFormData["address"]}`;
   placeholder?: string;
   register: UseFormRegister<UserFormData>;
   required?: boolean;
   error?: FieldError;
+  className?: string;
 };
 
 export default function FieldInput({
@@ -20,15 +24,16 @@ export default function FieldInput({
   required,
   error,
   placeholder,
+  className = "",
 }: FieldInputProps) {
   return (
     <div className="">
-      <label className="block text-gray-700">{label}</label>
+      <label className="block text-neutral-700">{label}</label>
       <input
         type={type}
-        className={`border border-gray-400 rounded w-full p-2 bg-white outline-none focus:ring-2 focus:ring-blue-500 ${
+        className={`border border-neutral-400 rounded w-full p-2 outline-none focus:ring-2 focus:ring-blue-500 ${
           error ? "border-red-500" : ""
-        }`}
+        } ${className}`}
         {...register(name, { required })}
         placeholder={placeholder}
       />

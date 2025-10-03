@@ -1,86 +1,84 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Card from "../components/card";
-import { ChevronDown, Loader } from "lucide-react";
-import type { User } from "../types/user";
-import { fetchUsers } from "../services/userService";
-import { useFetch } from "../hooks/useFetch";
+import { Loader } from "lucide-react";
 import { useFiltering } from "../hooks/useFiltering";
 import { useSearchParams } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import type { AppDispatch, RootState } from "../store/store";
+import { fetchUsersThunk } from "../store/user/userSlice";
+import DropDown from "../components/ui/dropDown";
 
 export default function Home() {
-  const { data: users, error, loading } = useFetch<User[]>(fetchUsers);
   const [searchParams, setSearchParams] = useSearchParams("");
   const query = searchParams.get("query") || "";
   const sortOrder = searchParams.get("sort") || "";
+  const dispatch = useDispatch<AppDispatch>();
+  const {
+    items: users,
+    loading,
+    error,
+  } = useSelector((state: RootState) => state.users);
 
-  const filteredUsers = useFiltering(users || [], query, sortOrder);
+  const { sortedData: filteredUsers, updateURLParams } = useFiltering(
+    users || [],
+    query,
+    sortOrder,
+    setSearchParams
+  );
 
-  const handleChange = (
-    e:
-      | React.ChangeEvent<HTMLInputElement>
-      | React.ChangeEvent<HTMLSelectElement>
-  ) => {
-    setSearchParams((prev) => {
-      const params = new URLSearchParams(prev);
-      if (e.target instanceof HTMLInputElement) {
-        params.set("query", e.target.value);
-      } else {
-        params.set("sort", e.target.value);
-      }
-      return params;
-    });
+  useEffect(() => {
+    if (users.length === 0) {
+      dispatch(fetchUsersThunk());
+    }
+  }, [dispatch, users.length]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateURLParams(e.target.value, sortOrder);
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-gray-600 text-lg">
-          <Loader className="animate-spin mx-auto mb-2" />
-        </div>
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-red-600 text-lg">
-          Error fetching users: {error.message}
-        </div>
-      </div>
-    );
-  }
+  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    updateURLParams(query, e.target.value);
+  };
 
   return (
-    <div className="bg-gray-100 min-h-screen p-6">
+    <div className="bg-gray-100 p-6">
       <div className="max-w-7xl mx-auto">
+        {/* Filtering section */}
         <div className="flex items-center gap-2 my-5">
-          <div className="relative">
-            <select
-              className="bg-white border border-gray-300 rounded-md py-2 pl-3 pr-10 focus:outline-gray-400 appearance-none cursor-pointer"
-              value={sortOrder}
-              onChange={handleChange}
-              name="sort"
-            >
-              <option value="" disabled>
-                Sort
-              </option>
-              <option value="ascending">Ascending</option>
-              <option value="descending">Descending</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-          </div>
+          <DropDown
+            options={[
+              { label: "Sort by Relevance", value: "" },
+              { label: "Sort by Name (A-Z)", value: "ascending" },
+              { label: "Sort by Name (Z-A)", value: "descending" },
+            ]}
+            name="sort"
+            defaultValue={sortOrder}
+            onChange={handleSortChange}
+          />
           <input
             type="text"
             placeholder="Search users..."
             className="flex-1 bg-white border border-gray-300 rounded-md py-2 px-3 focus:outline-gray-400"
             value={query}
-            onChange={handleChange}
+            onChange={handleSearchChange}
             name="search"
           />
         </div>
+
+        {/* Users section */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredUsers.length === 0 ? (
-            <p className="text-gray-600">No users found.</p>
+          {loading ? (
+            <div className="col-span-full flex justify-center items-center">
+              <Loader className="animate-spin text-gray-500" />
+            </div>
+          ) : error ? (
+            <div className="col-span-full text-center text-red-500">
+              Error: {error}
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="col-span-full text-center text-gray-500">
+              No users found.
+            </div>
           ) : (
             filteredUsers.map((user) => <Card key={user.id} {...user} />)
           )}
